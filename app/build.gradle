@@ -16,6 +16,7 @@
 
 apply plugin: 'com.android.application'
 apply plugin: 'com.google.protobuf'
+apply plugin: 'realm-android'
 
 ext {
     supportLibraryVersion = '25.4.0'

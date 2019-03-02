@@ -18,6 +18,7 @@ package com.google.cloud.android.speech;
 
 import android.Manifest;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
@@ -40,7 +41,13 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.google.cloud.android.speech.Realm.Model;
+
 import java.util.ArrayList;
+
+import io.realm.Realm;
+import io.realm.RealmConfiguration;
+import io.realm.RealmModel;
 
 
 public class MainActivity extends AppCompatActivity implements MessageDialogFragment.Listener {
@@ -54,6 +61,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     private SpeechService mSpeechService;
     private ImageView mic;
     private static boolean listening=false;
+    private Realm mRealm;
 
     private VoiceRecorder mVoiceRecorder;
     private final VoiceRecorder.Callback mVoiceCallback = new VoiceRecorder.Callback() {
@@ -147,8 +155,31 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         final ArrayList<String> results = savedInstanceState == null ? null :
                 savedInstanceState.getStringArrayList(STATE_RESULTS);
+        if (results!=null)
+        addToDatabase(results);
         mAdapter = new ResultAdapter(results);
         mRecyclerView.setAdapter(mAdapter);
+    }
+
+    /*private void createDatabase() {
+        Realm.init(this);
+        RealmConfiguration realmConfig = new RealmConfiguration.Builder()
+                .name("tasky.realm")
+                .schemaVersion(0)
+                .build();
+        Realm.setDefaultConfiguration(realmConfig);
+    }*/
+
+    private void addToDatabase(ArrayList<String> results) {
+        String result="";
+        for (String s:results){
+            result=result+" "+ s;
+        }
+        Realm realm = Realm.getDefaultInstance();
+        Model object=new Model();
+        object.setSavedText(result);
+        realm.beginTransaction();
+        realm.commitTransaction();
     }
 
     @Override
