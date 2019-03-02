@@ -227,6 +227,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         stopVoiceRecorder();
 
         // Stop Cloud Speech API
+        if (mSpeechService!=null)
         mSpeechService.removeListener(mSpeechServiceListener);
         unbindService(mServiceConnection);
         mSpeechService = null;

@@ -38,6 +38,11 @@
             </intent-filter>
         </activity>
         <service android:name=".SpeechService"/>
+        <meta-data
+            tools:node="replace"
+            android:name="android.support.VERSION"
+            android:value="26.1.0"
+        />
     </application>
 
 </manifest>
