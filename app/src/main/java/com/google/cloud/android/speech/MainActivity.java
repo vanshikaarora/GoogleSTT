@@ -130,9 +130,13 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                 if (listening){
                     listening=false;
                     stopVoiceRecorder();
+                    mStatus.setText("Press Mic to hear again");
+                    mic.setImageDrawable(getDrawable(R.drawable.ic_mic_black_24dp));
                 } else {
                     startVoiceRecorder();
                     listening=true;
+                    mStatus.setText("Listening...");
+                    mic.setImageDrawable(getDrawable(R.drawable.ic_mic_red_24dp));
                 }
             }
         });
@@ -214,6 +218,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         switch (item.getItemId()) {
             case R.id.action_file:
                 mSpeechService.recognizeInputStream(getResources().openRawResource(R.raw.audio));
+                mText.setText("");
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
