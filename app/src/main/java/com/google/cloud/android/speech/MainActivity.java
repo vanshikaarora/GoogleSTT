@@ -33,6 +33,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -40,6 +41,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.cloud.android.speech.Realm.Model;
 
@@ -48,6 +50,7 @@ import java.util.ArrayList;
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmModel;
+import io.realm.RealmResults;
 
 
 public class MainActivity extends AppCompatActivity implements MessageDialogFragment.Listener {
@@ -61,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     private SpeechService mSpeechService;
     private ImageView mic;
     private static boolean listening=false;
-    private Realm mRealm;
+    private Realm realm;
 
     private VoiceRecorder mVoiceRecorder;
     private final VoiceRecorder.Callback mVoiceCallback = new VoiceRecorder.Callback() {
@@ -130,7 +133,8 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
         mStatus = (TextView) findViewById(R.id.status);
         mText = (TextView) findViewById(R.id.text);
-
+        Realm.init(this);
+        realm = Realm.getDefaultInstance();
         mic=(ImageView) findViewById(R.id.mic);
         mic.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -155,10 +159,16 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         final ArrayList<String> results = savedInstanceState == null ? null :
                 savedInstanceState.getStringArrayList(STATE_RESULTS);
-        if (results!=null)
-        addToDatabase(results);
-        mAdapter = new ResultAdapter(results);
-        mRecyclerView.setAdapter(mAdapter);
+        if (results!=null){
+            String result="";
+            for (String s:results){
+                result=result+" "+ s;
+            }
+            addToDatabase(result);
+            mAdapter = new ResultAdapter(results);
+        }
+
+
     }
 
     /*private void createDatabase() {
@@ -170,16 +180,25 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         Realm.setDefaultConfiguration(realmConfig);
     }*/
 
-    private void addToDatabase(ArrayList<String> results) {
-        String result="";
-        for (String s:results){
-            result=result+" "+ s;
-        }
-        Realm realm = Realm.getDefaultInstance();
-        Model object=new Model();
-        object.setSavedText(result);
-        realm.beginTransaction();
-        realm.commitTransaction();
+    private void addToDatabase(final String result) {
+        realm.executeTransactionAsync(new Realm.Transaction() {
+            @Override
+            public void execute(Realm bgRealm) {
+                Model object = bgRealm.createObject(Model.class);
+                object.setSavedText(result);
+            }
+        }, new Realm.Transaction.OnSuccess() {
+            @Override
+            public void onSuccess() {
+                Log.v("line193","success");
+            }
+        }, new Realm.Transaction.OnError() {
+            @Override
+            public void onError(Throwable error) {
+                Log.v("line198",error.getLocalizedMessage());
+            }
+        });
+
     }
 
     @Override
@@ -304,17 +323,29 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                             @Override
                             public void run() {
                                 if (isFinal) {
-                                    mText.setText(null);
-                                    mAdapter.addResult(text);
-                                    mRecyclerView.smoothScrollToPosition(0);
+                                    //mText.setText(null);
+                                    addToDatabase(text);
+                                    //mRecyclerView.smoothScrollToPosition(0);
+                                    showSearchResults();
                                 } else {
                                     mText.setText(text);
+                                    addToDatabase(text);
                                 }
                             }
                         });
                     }
                 }
             };
+
+    private void showSearchResults() {
+        ArrayList<String> results=new ArrayList<>();
+        RealmResults<Model> databaseResults=realm.where(Model.class).findAll();
+        for (Model databaseResult: databaseResults){
+            results.add(databaseResult.getSavedText());
+        }
+        mAdapter=new ResultAdapter(results);
+        mRecyclerView.setAdapter(mAdapter);
+    }
 
     private static class ViewHolder extends RecyclerView.ViewHolder {
 
