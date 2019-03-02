@@ -140,7 +140,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                 }
             }
         });
-        startVoiceRecorder();
+        //startVoiceRecorder();
 
 
         mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view);
