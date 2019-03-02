@@ -37,6 +37,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -51,6 +52,8 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1;
 
     private SpeechService mSpeechService;
+    private ImageView mic;
+    private static boolean listening=false;
 
     private VoiceRecorder mVoiceRecorder;
     private final VoiceRecorder.Callback mVoiceCallback = new VoiceRecorder.Callback() {
@@ -58,14 +61,14 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         @Override
         public void onVoiceStart() {
             showStatus(true);
-            if (mSpeechService != null) {
+            if (mSpeechService != null && listening) {
                 mSpeechService.startRecognizing(mVoiceRecorder.getSampleRate());
             }
         }
 
         @Override
         public void onVoice(byte[] data, int size) {
-            if (mSpeechService != null) {
+            if (mSpeechService != null && listening) {
                 mSpeechService.recognize(data, size);
             }
         }
@@ -73,7 +76,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         @Override
         public void onVoiceEnd() {
             showStatus(false);
-            if (mSpeechService != null) {
+            if (mSpeechService != null && listening) {
                 mSpeechService.finishRecognizing();
             }
         }
@@ -119,6 +122,22 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
         mStatus = (TextView) findViewById(R.id.status);
         mText = (TextView) findViewById(R.id.text);
+
+        mic=(ImageView) findViewById(R.id.mic);
+        mic.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (listening){
+                    listening=false;
+                    stopVoiceRecorder();
+                } else {
+                    startVoiceRecorder();
+                    listening=true;
+                }
+            }
+        });
+        startVoiceRecorder();
+
 
         mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));

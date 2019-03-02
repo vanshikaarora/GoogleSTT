@@ -41,6 +41,7 @@
 
     </android.support.design.widget.AppBarLayout>
 
+
     <android.support.v7.widget.RecyclerView
         android:id="@+id/recycler_view"
         android:layout_width="match_parent"
@@ -50,5 +51,13 @@
         android:paddingTop="@dimen/spacing_small"
         app:behavior_overlapTop="128dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"/>
+
+    <ImageView
+        android:id="@+id/mic"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@drawable/ic_mic_black_24dp"
+        app:layout_anchor="@+id/recycler_view"
+        app:layout_anchorGravity="bottom|center" />
 
 </android.support.design.widget.CoordinatorLayout>
