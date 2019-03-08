@@ -18,11 +18,11 @@ package com.google.cloud.android.speech;
 
 import android.Manifest;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
@@ -41,15 +41,20 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import com.firebase.ui.database.FirebaseRecyclerAdapter;
+import com.firebase.ui.database.FirebaseRecyclerOptions;
+import com.firebase.ui.database.SnapshotParser;
 import com.google.cloud.android.speech.Realm.Model;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
 
 import java.util.ArrayList;
 
 import io.realm.Realm;
-import io.realm.RealmConfiguration;
-import io.realm.RealmModel;
 import io.realm.RealmResults;
 
 
@@ -60,13 +65,20 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     private static final String STATE_RESULTS = "results";
 
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1;
-
+    private static boolean listening = false;
     private SpeechService mSpeechService;
     private ImageView mic;
-    private static boolean listening=false;
     private Realm realm;
+    private RecyclerView firebaseRecyclerView;
+    private LinearLayoutManager firebaseLinearLayoutManager;
+    private FirebaseRecyclerAdapter firebaseAdapter;
 
     private VoiceRecorder mVoiceRecorder;
+    // Resource caches
+    private int mColorHearing;
+    private int mColorNotHearing;
+    // View references
+    private TextView mStatus;
     private final VoiceRecorder.Callback mVoiceCallback = new VoiceRecorder.Callback() {
 
         @Override
@@ -93,17 +105,34 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         }
 
     };
-
-    // Resource caches
-    private int mColorHearing;
-    private int mColorNotHearing;
-
-    // View references
-    private TextView mStatus;
     private TextView mText;
     private ResultAdapter mAdapter;
     private RecyclerView mRecyclerView;
-
+    private final SpeechService.Listener mSpeechServiceListener =
+            new SpeechService.Listener() {
+                @Override
+                public void onSpeechRecognized(final String text, final boolean isFinal) {
+                    if (isFinal) {
+                        mVoiceRecorder.dismiss();
+                    }
+                    if (mText != null && !TextUtils.isEmpty(text)) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (isFinal) {
+                                    //mText.setText(null);
+                                    addToDatabase(text);
+                                    //mRecyclerView.smoothScrollToPosition(0);
+                                    showSearchResults();
+                                } else {
+                                    mText.setText(text);
+                                    addToDatabase(text);
+                                }
+                            }
+                        });
+                    }
+                }
+            };
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
 
         @Override
@@ -120,6 +149,15 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
 
     };
 
+    /*private void createDatabase() {
+        Realm.init(this);
+        RealmConfiguration realmConfig = new RealmConfiguration.Builder()
+                .name("tasky.realm")
+                .schemaVersion(0)
+                .build();
+        Realm.setDefaultConfiguration(realmConfig);
+    }*/
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -133,21 +171,30 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
         mStatus = (TextView) findViewById(R.id.status);
         mText = (TextView) findViewById(R.id.text);
+
+        FirebaseApp.initializeApp(this);
+        firebaseRecyclerView= (RecyclerView) findViewById(R.id.firebaseList);
+        firebaseLinearLayoutManager=new LinearLayoutManager(this);
+        firebaseRecyclerView.setLayoutManager(firebaseLinearLayoutManager);
+        firebaseRecyclerView.setHasFixedSize(true);
+
         Realm.init(this);
         realm = Realm.getDefaultInstance();
-        mic=(ImageView) findViewById(R.id.mic);
+        mic = (ImageView) findViewById(R.id.mic);
         mic.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (listening){
-                    listening=false;
+                if (listening) {
+                    listening = false;
                     stopVoiceRecorder();
+                    Log.v("line188","not listening");
                     mStatus.setText("Press Mic to hear again");
                     mic.setImageDrawable(getDrawable(R.drawable.ic_mic_black_24dp));
                 } else {
                     startVoiceRecorder();
-                    listening=true;
+                    listening = true;
                     mStatus.setText("Listening...");
+                    Log.v("line195","listening");
                     mic.setImageDrawable(getDrawable(R.drawable.ic_mic_red_24dp));
                 }
             }
@@ -159,51 +206,70 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         final ArrayList<String> results = savedInstanceState == null ? null :
                 savedInstanceState.getStringArrayList(STATE_RESULTS);
-        if (results!=null){
-            String result="";
-            for (String s:results){
-                result=result+" "+ s;
+        if (results != null) {
+            String result = "";
+            for (String s : results) {
+                result = result + " " + s;
             }
             addToDatabase(result);
             mAdapter = new ResultAdapter(results);
         }
+        Query query = FirebaseDatabase.getInstance()
+                .getReference()
+                .child("msgs");
+        FirebaseRecyclerOptions<String> options =
+                new FirebaseRecyclerOptions.Builder<String>()
+                        .setQuery(query, new SnapshotParser<String>() {
+                            @NonNull
+                            @Override
+                            public String parseSnapshot(@NonNull DataSnapshot snapshot) {
+                                return snapshot.getValue().toString();
+                            }
+                        })
+                        .build();
+        firebaseAdapter=new FirebaseRecyclerAdapter<String,ViewHolder>(options) {
+            @Override
+            protected void onBindViewHolder(@NonNull ViewHolder holder, int position, @NonNull String model) {
+                firebaseRecyclerView.setVisibility(View.VISIBLE);
+            }
+
+
+            @Override
+            public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+                return null;
+            }
+        };
+        firebaseRecyclerView.setAdapter(firebaseAdapter);
 
 
     }
 
-    /*private void createDatabase() {
-        Realm.init(this);
-        RealmConfiguration realmConfig = new RealmConfiguration.Builder()
-                .name("tasky.realm")
-                .schemaVersion(0)
-                .build();
-        Realm.setDefaultConfiguration(realmConfig);
-    }*/
-
     private void addToDatabase(final String result) {
-        realm.executeTransactionAsync(new Realm.Transaction() {
+        /*realm.executeTransactionAsync(new Realm.Transaction() {
             @Override
             public void execute(Realm bgRealm) {
                 Model object = bgRealm.createObject(Model.class);
                 object.setSavedText(result);
+                new AddDataAsync().execute(result);
             }
         }, new Realm.Transaction.OnSuccess() {
             @Override
             public void onSuccess() {
-                Log.v("line193","success");
+                Log.v("line193", "success");
             }
         }, new Realm.Transaction.OnError() {
             @Override
             public void onError(Throwable error) {
-                Log.v("line198",error.getLocalizedMessage());
+                Log.v("line198", error.getLocalizedMessage());
             }
-        });
+        });*/
 
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        firebaseAdapter.startListening();
 
         // Prepare Cloud Speech API
         bindService(new Intent(this, SpeechService.class), mServiceConnection, BIND_AUTO_CREATE);
@@ -225,10 +291,11 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     protected void onStop() {
         // Stop listening to voice
         stopVoiceRecorder();
+        firebaseAdapter.stopListening();
 
         // Stop Cloud Speech API
-        if (mSpeechService!=null)
-        mSpeechService.removeListener(mSpeechServiceListener);
+        if (mSpeechService != null)
+            mSpeechService.removeListener(mSpeechServiceListener);
         unbindService(mServiceConnection);
         mSpeechService = null;
 
@@ -245,7 +312,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-            @NonNull int[] grantResults) {
+                                           @NonNull int[] grantResults) {
         if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
             if (permissions.length == 1 && grantResults.length == 1
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -312,39 +379,14 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                 REQUEST_RECORD_AUDIO_PERMISSION);
     }
 
-    private final SpeechService.Listener mSpeechServiceListener =
-            new SpeechService.Listener() {
-                @Override
-                public void onSpeechRecognized(final String text, final boolean isFinal) {
-                    if (isFinal) {
-                        mVoiceRecorder.dismiss();
-                    }
-                    if (mText != null && !TextUtils.isEmpty(text)) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (isFinal) {
-                                    //mText.setText(null);
-                                    addToDatabase(text);
-                                    //mRecyclerView.smoothScrollToPosition(0);
-                                    showSearchResults();
-                                } else {
-                                    mText.setText(text);
-                                    addToDatabase(text);
-                                }
-                            }
-                        });
-                    }
-                }
-            };
-
     private void showSearchResults() {
-        ArrayList<String> results=new ArrayList<>();
-        RealmResults<Model> databaseResults=realm.where(Model.class).findAll();
-        for (Model databaseResult: databaseResults){
+        ArrayList<String> results = new ArrayList<>();
+        RealmResults<Model> databaseResults = realm.where(Model.class).findAll();
+        for (Model databaseResult : databaseResults) {
             results.add(databaseResult.getSavedText());
         }
-        mAdapter=new ResultAdapter(results);
+        //new ReadDataAsync().execute("");
+        mAdapter = new ResultAdapter(results);
         mRecyclerView.setAdapter(mAdapter);
     }
 
@@ -393,6 +435,34 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
             return mResults;
         }
 
+    }
+
+    public class AddDataAsync extends android.os.AsyncTask<String, Integer, String> {
+
+        @Override
+        protected String doInBackground(String... strings) {
+            FirebaseDatabase database = FirebaseDatabase.getInstance();
+            DatabaseReference myRef = database.getReference("msgs");
+
+            myRef.setValue(strings);
+            return null;
+        }
+    }
+
+    public class ReadDataAsync extends AsyncTask<String, Integer, String> {
+
+        @Override
+        protected String doInBackground(String... strings) {
+
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+
+        }
     }
 
 }

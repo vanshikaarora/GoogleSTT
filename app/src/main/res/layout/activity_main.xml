@@ -21,12 +21,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context="com.google.cloud.android.speech.MainActivity">
+<android.support.constraint.ConstraintLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
     <android.support.design.widget.AppBarLayout
         android:id="@+id/app_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/colorPrimary"
+        app:layout_constraintTop_toTopOf="parent"
         android:theme="@style/ThemeOverlay.AppCompat.Dark">
 
         <android.support.v7.widget.Toolbar
@@ -40,6 +44,18 @@
         <include layout="@layout/item_result"/>
 
     </android.support.design.widget.AppBarLayout>
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/firebaseList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@+id/app_bar"
+        android:paddingBottom="@dimen/spacing_small"
+        android:paddingTop="@dimen/spacing_small"
+        app:behavior_overlapTop="128dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
 
 
     <android.support.v7.widget.RecyclerView
@@ -48,6 +64,7 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:paddingBottom="@dimen/spacing_small"
+        app:layout_constraintTop_toBottomOf="@+id/firebaseList"
         android:paddingTop="@dimen/spacing_small"
         app:behavior_overlapTop="128dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"/>
@@ -56,8 +73,13 @@
         android:id="@+id/mic"
         android:layout_width="60dp"
         android:layout_height="60dp"
+        android:layout_marginBottom="8dp"
         android:src="@drawable/ic_mic_black_24dp"
         app:layout_anchor="@+id/recycler_view"
-        app:layout_anchorGravity="bottom|center" />
+        app:layout_anchorGravity="bottom|center"
+        app:layout_constraintBottom_toBottomOf="@+id/recycler_view"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+</android.support.constraint.ConstraintLayout>
 
 </android.support.design.widget.CoordinatorLayout>
