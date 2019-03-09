@@ -74,40 +74,27 @@ import io.grpc.stub.StreamObserver;
 
 public class SpeechService extends Service {
 
-    public interface Listener {
-
-        /**
-         * Called when a new piece of text was recognized by the Speech API.
-         *
-         * @param text    The text.
-         * @param isFinal {@code true} when the API finished processing audio.
-         */
-        void onSpeechRecognized(String text, boolean isFinal);
-
-    }
-
+    public static final List<String> SCOPE =
+            Collections.singletonList("https://www.googleapis.com/auth/cloud-platform");
     private static final String TAG = "SpeechService";
 
     private static final String PREFS = "SpeechService";
     private static final String PREF_ACCESS_TOKEN_VALUE = "access_token_value";
     private static final String PREF_ACCESS_TOKEN_EXPIRATION_TIME = "access_token_expiration_time";
 
-    /** We reuse an access token if its expiration time is longer than this. */
+    /**
+     * We reuse an access token if its expiration time is longer than this.
+     */
     private static final int ACCESS_TOKEN_EXPIRATION_TOLERANCE = 30 * 60 * 1000; // thirty minutes
-    /** We refresh the current access token before it expires. */
+    /**
+     * We refresh the current access token before it expires.
+     */
     private static final int ACCESS_TOKEN_FETCH_MARGIN = 60 * 1000; // one minute
-
-    public static final List<String> SCOPE =
-            Collections.singletonList("https://www.googleapis.com/auth/cloud-platform");
     private static final String HOSTNAME = "speech.googleapis.com";
     private static final int PORT = 443;
-
+    private static Handler mHandler;
     private final SpeechBinder mBinder = new SpeechBinder();
     private final ArrayList<Listener> mListeners = new ArrayList<>();
-    private volatile AccessTokenTask mAccessTokenTask;
-    private SpeechGrpc.SpeechStub mApi;
-    private static Handler mHandler;
-
     private final StreamObserver<StreamingRecognizeResponse> mResponseObserver
             = new StreamObserver<StreamingRecognizeResponse>() {
         @Override
@@ -140,7 +127,6 @@ public class SpeechService extends Service {
         }
 
     };
-
     private final StreamObserver<RecognizeResponse> mFileResponseObserver
             = new StreamObserver<RecognizeResponse>() {
         @Override
@@ -171,7 +157,14 @@ public class SpeechService extends Service {
         }
 
     };
-
+    private volatile AccessTokenTask mAccessTokenTask;
+    private final Runnable mFetchAccessTokenRunnable = new Runnable() {
+        @Override
+        public void run() {
+            fetchAccessToken();
+        }
+    };
+    private SpeechGrpc.SpeechStub mApi;
     private StreamObserver<StreamingRecognizeRequest> mRequestObserver;
 
     public static SpeechService from(IBinder binder) {
@@ -314,79 +307,16 @@ public class SpeechService extends Service {
         }
     }
 
-    private class SpeechBinder extends Binder {
+    public interface Listener {
 
-        SpeechService getService() {
-            return SpeechService.this;
-        }
+        /**
+         * Called when a new piece of text was recognized by the Speech API.
+         *
+         * @param text    The text.
+         * @param isFinal {@code true} when the API finished processing audio.
+         */
+        void onSpeechRecognized(String text, boolean isFinal);
 
-    }
-
-    private final Runnable mFetchAccessTokenRunnable = new Runnable() {
-        @Override
-        public void run() {
-            fetchAccessToken();
-        }
-    };
-
-    private class AccessTokenTask extends AsyncTask<Void, Void, AccessToken> {
-
-        @Override
-        protected AccessToken doInBackground(Void... voids) {
-            final SharedPreferences prefs =
-                    getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-            String tokenValue = prefs.getString(PREF_ACCESS_TOKEN_VALUE, null);
-            long expirationTime = prefs.getLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME, -1);
-
-            // Check if the current token is still valid for a while
-            if (tokenValue != null && expirationTime > 0) {
-                if (expirationTime
-                        > System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION_TOLERANCE) {
-                    return new AccessToken(tokenValue, new Date(expirationTime));
-                }
-            }
-
-            // ***** WARNING *****
-            // In this sample, we load the credential from a JSON file stored in a raw resource
-            // folder of this client app. You should never do this in your app. Instead, store
-            // the file in your server and obtain an access token from there.
-            // *******************
-            final InputStream stream = getResources().openRawResource(R.raw.credential);
-            try {
-                final GoogleCredentials credentials = GoogleCredentials.fromStream(stream)
-                        .createScoped(SCOPE);
-                final AccessToken token = credentials.refreshAccessToken();
-                prefs.edit()
-                        .putString(PREF_ACCESS_TOKEN_VALUE, token.getTokenValue())
-                        .putLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME,
-                                token.getExpirationTime().getTime())
-                        .apply();
-                return token;
-            } catch (IOException e) {
-                Log.e(TAG, "Failed to obtain access token.", e);
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(AccessToken accessToken) {
-            mAccessTokenTask = null;
-            final ManagedChannel channel = new OkHttpChannelProvider()
-                    .builderForAddress(HOSTNAME, PORT)
-                    .nameResolverFactory(new DnsNameResolverProvider())
-                    .intercept(new GoogleCredentialsInterceptor(new GoogleCredentials(accessToken)
-                            .createScoped(SCOPE)))
-                    .build();
-            mApi = SpeechGrpc.newStub(channel);
-
-            // Schedule access token refresh before it expires
-            if (mHandler != null) {
-                mHandler.postDelayed(mFetchAccessTokenRunnable,
-                        Math.max(accessToken.getExpirationTime().getTime()
-                                - System.currentTimeMillis()
-                                - ACCESS_TOKEN_FETCH_MARGIN, ACCESS_TOKEN_EXPIRATION_TOLERANCE));
-            }
-        }
     }
 
     /**
@@ -402,6 +332,20 @@ public class SpeechService extends Service {
 
         GoogleCredentialsInterceptor(Credentials credentials) {
             mCredentials = credentials;
+        }
+
+        private static Metadata toHeaders(Map<String, List<String>> metadata) {
+            Metadata headers = new Metadata();
+            if (metadata != null) {
+                for (String key : metadata.keySet()) {
+                    Metadata.Key<String> headerKey = Metadata.Key.of(
+                            key, Metadata.ASCII_STRING_MARSHALLER);
+                    for (String value : metadata.get(key)) {
+                        headers.put(headerKey, value);
+                    }
+                }
+            }
+            return headers;
         }
 
         @Override
@@ -480,20 +424,74 @@ public class SpeechService extends Service {
             }
         }
 
-        private static Metadata toHeaders(Map<String, List<String>> metadata) {
-            Metadata headers = new Metadata();
-            if (metadata != null) {
-                for (String key : metadata.keySet()) {
-                    Metadata.Key<String> headerKey = Metadata.Key.of(
-                            key, Metadata.ASCII_STRING_MARSHALLER);
-                    for (String value : metadata.get(key)) {
-                        headers.put(headerKey, value);
-                    }
-                }
-            }
-            return headers;
+    }
+
+    private class SpeechBinder extends Binder {
+
+        SpeechService getService() {
+            return SpeechService.this;
         }
 
+    }
+
+    private class AccessTokenTask extends AsyncTask<Void, Void, AccessToken> {
+
+        @Override
+        protected AccessToken doInBackground(Void... voids) {
+            final SharedPreferences prefs =
+                    getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            String tokenValue = prefs.getString(PREF_ACCESS_TOKEN_VALUE, null);
+            long expirationTime = prefs.getLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME, -1);
+
+            // Check if the current token is still valid for a while
+            if (tokenValue != null && expirationTime > 0) {
+                if (expirationTime
+                        > System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION_TOLERANCE) {
+                    return new AccessToken(tokenValue, new Date(expirationTime));
+                }
+            }
+
+            // ***** WARNING *****
+            // In this sample, we load the credential from a JSON file stored in a raw resource
+            // folder of this client app. You should never do this in your app. Instead, store
+            // the file in your server and obtain an access token from there.
+            // *******************
+            final InputStream stream = getResources().openRawResource(R.raw.credential);
+            try {
+                final GoogleCredentials credentials = GoogleCredentials.fromStream(stream)
+                        .createScoped(SCOPE);
+                final AccessToken token = credentials.refreshAccessToken();
+                prefs.edit()
+                        .putString(PREF_ACCESS_TOKEN_VALUE, token.getTokenValue())
+                        .putLong(PREF_ACCESS_TOKEN_EXPIRATION_TIME,
+                                token.getExpirationTime().getTime())
+                        .apply();
+                return token;
+            } catch (IOException e) {
+                Log.e(TAG, "Failed to obtain access token.", e);
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(AccessToken accessToken) {
+            mAccessTokenTask = null;
+            final ManagedChannel channel = new OkHttpChannelProvider()
+                    .builderForAddress(HOSTNAME, PORT)
+                    .nameResolverFactory(new DnsNameResolverProvider())
+                    .intercept(new GoogleCredentialsInterceptor(new GoogleCredentials(accessToken)
+                            .createScoped(SCOPE)))
+                    .build();
+            mApi = SpeechGrpc.newStub(channel);
+
+            // Schedule access token refresh before it expires
+            if (mHandler != null) {
+                mHandler.postDelayed(mFetchAccessTokenRunnable,
+                        Math.max(accessToken.getExpirationTime().getTime()
+                                - System.currentTimeMillis()
+                                - ACCESS_TOKEN_FETCH_MARGIN, ACCESS_TOKEN_EXPIRATION_TOLERANCE));
+            }
+        }
     }
 
 }

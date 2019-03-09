@@ -40,45 +40,20 @@ public class VoiceRecorder {
     private static final int AMPLITUDE_THRESHOLD = 1500;
     private static final int SPEECH_TIMEOUT_MILLIS = 2000;
     private static final int MAX_SPEECH_LENGTH_MILLIS = 30 * 1000;
-
-    public static abstract class Callback {
-
-        /**
-         * Called when the recorder starts hearing voice.
-         */
-        public void onVoiceStart() {
-        }
-
-        /**
-         * Called when the recorder is hearing voice.
-         *
-         * @param data The audio data in {@link AudioFormat#ENCODING_PCM_16BIT}.
-         * @param size The size of the actual data in {@code data}.
-         */
-        public void onVoice(byte[] data, int size) {
-        }
-
-        /**
-         * Called when the recorder stops hearing voice.
-         */
-        public void onVoiceEnd() {
-        }
-    }
-
     private final Callback mCallback;
-
+    private final Object mLock = new Object();
     private AudioRecord mAudioRecord;
 
     private Thread mThread;
 
     private byte[] mBuffer;
-
-    private final Object mLock = new Object();
-
-    /** The timestamp of the last time that voice is heard. */
+    /**
+     * The timestamp of the last time that voice is heard.
+     */
     private long mLastVoiceHeardMillis = Long.MAX_VALUE;
-
-    /** The timestamp when the current voice is started. */
+    /**
+     * The timestamp when the current voice is started.
+     */
     private long mVoiceStartedMillis;
 
     public VoiceRecorder(@NonNull Callback callback) {
@@ -168,6 +143,30 @@ public class VoiceRecorder {
             }
         }
         return null;
+    }
+
+    public static abstract class Callback {
+
+        /**
+         * Called when the recorder starts hearing voice.
+         */
+        public void onVoiceStart() {
+        }
+
+        /**
+         * Called when the recorder is hearing voice.
+         *
+         * @param data The audio data in {@link AudioFormat#ENCODING_PCM_16BIT}.
+         * @param size The size of the actual data in {@code data}.
+         */
+        public void onVoice(byte[] data, int size) {
+        }
+
+        /**
+         * Called when the recorder stops hearing voice.
+         */
+        public void onVoiceEnd() {
+        }
     }
 
     /**

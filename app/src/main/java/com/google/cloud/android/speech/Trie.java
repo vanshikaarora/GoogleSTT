@@ -44,7 +44,7 @@ class TrieNode {
 
     // Returns true if key presents in trie, else false
     boolean search(String key, boolean prefix) {
-        if (key!=null){
+        if (key != null) {
             StringTokenizer st1 = new StringTokenizer(key, " ");
             int level;
             int length = st1.countTokens();
@@ -62,7 +62,7 @@ class TrieNode {
             if (prefix) return pCrawl != null;
             return (pCrawl != null && pCrawl.isEndOfWord);
         }
-       return false;
+        return false;
     }
 }
 

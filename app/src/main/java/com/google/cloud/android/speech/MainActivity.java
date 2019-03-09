@@ -68,21 +68,19 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
 
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1;
     private static boolean listening = false;
+    private static boolean showFirebase = false;
     private SpeechService mSpeechService;
     private ImageView mic;
     private Realm realm;
     private RecyclerView firebaseRecyclerView;
     private LinearLayoutManager firebaseLinearLayoutManager;
     private FirebaseRecyclerAdapter firebaseAdapter;
-    private static  boolean showFirebase=false;
-
     private VoiceRecorder mVoiceRecorder;
     // Resource caches
     private int mColorHearing;
     private int mColorNotHearing;
     // View references
     private TextView mStatus;
-    private ConstraintLayout emptyLayout;
     private final VoiceRecorder.Callback mVoiceCallback = new VoiceRecorder.Callback() {
 
         @Override
@@ -109,21 +107,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         }
 
     };
-    private final ServiceConnection mServiceConnection = new ServiceConnection() {
-
-        @Override
-        public void onServiceConnected(ComponentName componentName, IBinder binder) {
-            mSpeechService = SpeechService.from(binder);
-            mSpeechService.addListener(mSpeechServiceListener);
-            mStatus.setVisibility(View.VISIBLE);
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName componentName) {
-            mSpeechService = null;
-        }
-
-    };
+    private ConstraintLayout emptyLayout;
     private TextView mText;
     private String recentSpokenText;
     private ResultAdapter mAdapter;
@@ -154,6 +138,21 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                     }
                 }
             };
+    private final ServiceConnection mServiceConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder binder) {
+            mSpeechService = SpeechService.from(binder);
+            mSpeechService.addListener(mSpeechServiceListener);
+            mStatus.setVisibility(View.VISIBLE);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            mSpeechService = null;
+        }
+
+    };
 
     /*private void createDatabase() {
         Realm.init(this);
@@ -177,7 +176,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
         mStatus = (TextView) findViewById(R.id.status);
         mText = (TextView) findViewById(R.id.text);
-        emptyLayout=findViewById(R.id.emptyLayout);
+        emptyLayout = findViewById(R.id.emptyLayout);
 
         FirebaseApp.initializeApp(this);
         firebaseRecyclerView = (RecyclerView) findViewById(R.id.firebaseList);
@@ -345,16 +344,16 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                 mText.setText("");
                 return true;
             case R.id.show:
-                if (!showFirebase){
-                    Toast.makeText(this,"Showing results from firebase",Toast.LENGTH_LONG).show();
+                if (!showFirebase) {
+                    Toast.makeText(this, "Showing results from firebase", Toast.LENGTH_LONG).show();
                     mRecyclerView.setVisibility(View.GONE);
                     firebaseRecyclerView.setVisibility(View.VISIBLE);
-                    showFirebase=true;
+                    showFirebase = true;
                 } else {
-                    Toast.makeText(this,"Showing cached result, hiding firebase",Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Showing cached result, hiding firebase", Toast.LENGTH_LONG).show();
                     mRecyclerView.setVisibility(View.VISIBLE);
                     firebaseRecyclerView.setVisibility(View.GONE);
-                    showFirebase=false;
+                    showFirebase = false;
                 }
 
             default:
@@ -409,7 +408,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                 results.add(databaseResult.getSavedText());
         }
         //new ReadDataAsync().execute("");
-        if (results.size()==0){
+        if (results.size() == 0) {
             emptyLayout.setVisibility(View.VISIBLE);
         }
         mAdapter = new ResultAdapter(results);
@@ -424,7 +423,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         ViewHolder(LayoutInflater inflater, ViewGroup parent) {
             super(inflater.inflate(R.layout.item_result, parent, false));
             text = (TextView) itemView.findViewById(R.id.text);
-            cardView=(CardView) itemView.findViewById(R.id.card);
+            cardView = (CardView) itemView.findViewById(R.id.card);
         }
 
     }
@@ -477,9 +476,9 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         protected String doInBackground(String... strings) {
             FirebaseDatabase database = FirebaseDatabase.getInstance();
             DatabaseReference myRef = database.getReference("msgs");
-           for (String s:strings){
-               myRef.push().setValue(s);
-           }
+            for (String s : strings) {
+                myRef.push().setValue(s);
+            }
             return null;
         }
     }
