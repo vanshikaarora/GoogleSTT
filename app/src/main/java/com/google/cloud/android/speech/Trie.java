@@ -44,22 +44,25 @@ class TrieNode {
 
     // Returns true if key presents in trie, else false
     boolean search(String key, boolean prefix) {
-        StringTokenizer st1 = new StringTokenizer(key, " ");
-        int level;
-        int length = st1.countTokens();
-        int index;
-        TrieNode pCrawl = this;
-        String curr;
-        for (level = 0; level < length; level++) {
-            //index = key.charAt(level) - 'a';
-            curr = st1.nextToken();
-            if (!pCrawl.children.containsKey(curr))
-                return false;
+        if (key!=null){
+            StringTokenizer st1 = new StringTokenizer(key, " ");
+            int level;
+            int length = st1.countTokens();
+            int index;
+            TrieNode pCrawl = this;
+            String curr;
+            for (level = 0; level < length; level++) {
+                //index = key.charAt(level) - 'a';
+                curr = st1.nextToken();
+                if (!pCrawl.children.containsKey(curr))
+                    return false;
 
-            pCrawl = pCrawl.children.get(curr);
+                pCrawl = pCrawl.children.get(curr);
+            }
+            if (prefix) return pCrawl != null;
+            return (pCrawl != null && pCrawl.isEndOfWord);
         }
-        if (prefix) return pCrawl != null;
-        return (pCrawl != null && pCrawl.isEndOfWord);
+       return false;
     }
 }
 

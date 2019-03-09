@@ -74,11 +74,11 @@
         android:clipToPadding="false"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@+id/app_bar"
+        app:layout_constraintBottom_toTopOf="@+id/mic"
         android:paddingBottom="@dimen/spacing_small"
         android:paddingTop="@dimen/spacing_small"
         app:behavior_overlapTop="128dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
 
 
     <android.support.v7.widget.RecyclerView
@@ -86,11 +86,12 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingBottom="@dimen/spacing_small"
-        app:layout_constraintTop_toBottomOf="@+id/firebaseList"
         android:paddingTop="@dimen/spacing_small"
+        android:paddingBottom="@dimen/spacing_small"
         app:behavior_overlapTop="128dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"/>
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        app:layout_constraintBottom_toTopOf="@+id/mic"
+        app:layout_constraintTop_toBottomOf="@+id/app_bar" />
 
     <ImageView
         android:id="@+id/mic"

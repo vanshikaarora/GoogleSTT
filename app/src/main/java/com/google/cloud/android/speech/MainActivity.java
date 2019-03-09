@@ -42,6 +42,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.firebase.ui.database.FirebaseRecyclerAdapter;
 import com.firebase.ui.database.FirebaseRecyclerOptions;
@@ -73,6 +74,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     private RecyclerView firebaseRecyclerView;
     private LinearLayoutManager firebaseLinearLayoutManager;
     private FirebaseRecyclerAdapter firebaseAdapter;
+    private static  boolean showFirebase=false;
 
     private VoiceRecorder mVoiceRecorder;
     // Resource caches
@@ -139,8 +141,8 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                             public void run() {
                                 if (isFinal) {
                                     //mText.setText(null);
-                                    showSearchResults();
                                     addToDatabase(text);
+                                    showSearchResults();
                                     recentSpokenText = text;
 
                                 } else {
@@ -236,12 +238,13 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
             @Override
             protected void onBindViewHolder(@NonNull ViewHolder holder, int position, @NonNull String model) {
                 firebaseRecyclerView.setVisibility(View.VISIBLE);
+                holder.text.setText(model);
             }
 
 
             @Override
             public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-                return null;
+                return new ViewHolder(LayoutInflater.from(parent.getContext()), parent);
             }
         };
         firebaseRecyclerView.setAdapter(firebaseAdapter);
@@ -341,6 +344,19 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                 mSpeechService.recognizeInputStream(getResources().openRawResource(R.raw.audio));
                 mText.setText("");
                 return true;
+            case R.id.show:
+                if (!showFirebase){
+                    Toast.makeText(this,"Showing results from firebase",Toast.LENGTH_LONG).show();
+                    mRecyclerView.setVisibility(View.GONE);
+                    firebaseRecyclerView.setVisibility(View.VISIBLE);
+                    showFirebase=true;
+                } else {
+                    Toast.makeText(this,"Showing cached result, hiding firebase",Toast.LENGTH_LONG).show();
+                    mRecyclerView.setVisibility(View.VISIBLE);
+                    firebaseRecyclerView.setVisibility(View.GONE);
+                    showFirebase=false;
+                }
+
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -394,7 +410,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         }
         //new ReadDataAsync().execute("");
         if (results.size()==0){
-            emptyLayout.setVisibility(View.GONE);
+            emptyLayout.setVisibility(View.VISIBLE);
         }
         mAdapter = new ResultAdapter(results);
         mRecyclerView.setAdapter(mAdapter);
@@ -461,8 +477,9 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         protected String doInBackground(String... strings) {
             FirebaseDatabase database = FirebaseDatabase.getInstance();
             DatabaseReference myRef = database.getReference("msgs");
-
-            myRef.setValue(strings);
+           for (String s:strings){
+               myRef.push().setValue(s);
+           }
             return null;
         }
     }

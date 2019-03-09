@@ -22,5 +22,11 @@
         android:id="@+id/action_file"
         android:title="@string/edit"
         app:showAsAction="ifRoom"/>
+    <item
+        android:id="@+id/show"
+        android:title="SHOW"
+        android:icon="@drawable/ic_data_usage_black_24dp"
+        app:showAsAction="ifRoom"
+        />
 
 </menu>
