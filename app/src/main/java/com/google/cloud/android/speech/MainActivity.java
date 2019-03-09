@@ -22,13 +22,14 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
+import android.support.constraint.ConstraintLayout;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.CardView;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
@@ -79,6 +80,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     private int mColorNotHearing;
     // View references
     private TextView mStatus;
+    private ConstraintLayout emptyLayout;
     private final VoiceRecorder.Callback mVoiceCallback = new VoiceRecorder.Callback() {
 
         @Override
@@ -105,34 +107,6 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         }
 
     };
-    private TextView mText;
-    private ResultAdapter mAdapter;
-    private RecyclerView mRecyclerView;
-    private final SpeechService.Listener mSpeechServiceListener =
-            new SpeechService.Listener() {
-                @Override
-                public void onSpeechRecognized(final String text, final boolean isFinal) {
-                    if (isFinal) {
-                        mVoiceRecorder.dismiss();
-                    }
-                    if (mText != null && !TextUtils.isEmpty(text)) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (isFinal) {
-                                    //mText.setText(null);
-                                    addToDatabase(text);
-                                    //mRecyclerView.smoothScrollToPosition(0);
-                                    showSearchResults();
-                                } else {
-                                    mText.setText(text);
-                                    addToDatabase(text);
-                                }
-                            }
-                        });
-                    }
-                }
-            };
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
 
         @Override
@@ -148,6 +122,36 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         }
 
     };
+    private TextView mText;
+    private String recentSpokenText;
+    private ResultAdapter mAdapter;
+    private RecyclerView mRecyclerView;
+    private final SpeechService.Listener mSpeechServiceListener =
+            new SpeechService.Listener() {
+                @Override
+                public void onSpeechRecognized(final String text, final boolean isFinal) {
+                    if (isFinal) {
+                        mVoiceRecorder.dismiss();
+                    }
+                    if (mText != null && !TextUtils.isEmpty(text)) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (isFinal) {
+                                    //mText.setText(null);
+                                    showSearchResults();
+                                    addToDatabase(text);
+                                    recentSpokenText = text;
+
+                                } else {
+                                    mText.setText(text);
+                                    addToDatabase(text);
+                                }
+                            }
+                        });
+                    }
+                }
+            };
 
     /*private void createDatabase() {
         Realm.init(this);
@@ -171,10 +175,11 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
         mStatus = (TextView) findViewById(R.id.status);
         mText = (TextView) findViewById(R.id.text);
+        emptyLayout=findViewById(R.id.emptyLayout);
 
         FirebaseApp.initializeApp(this);
-        firebaseRecyclerView= (RecyclerView) findViewById(R.id.firebaseList);
-        firebaseLinearLayoutManager=new LinearLayoutManager(this);
+        firebaseRecyclerView = (RecyclerView) findViewById(R.id.firebaseList);
+        firebaseLinearLayoutManager = new LinearLayoutManager(this);
         firebaseRecyclerView.setLayoutManager(firebaseLinearLayoutManager);
         firebaseRecyclerView.setHasFixedSize(true);
 
@@ -187,14 +192,14 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                 if (listening) {
                     listening = false;
                     stopVoiceRecorder();
-                    Log.v("line188","not listening");
+                    Log.v("line188", "not listening");
                     mStatus.setText("Press Mic to hear again");
                     mic.setImageDrawable(getDrawable(R.drawable.ic_mic_black_24dp));
                 } else {
                     startVoiceRecorder();
                     listening = true;
                     mStatus.setText("Listening...");
-                    Log.v("line195","listening");
+                    Log.v("line195", "listening");
                     mic.setImageDrawable(getDrawable(R.drawable.ic_mic_red_24dp));
                 }
             }
@@ -227,7 +232,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
                             }
                         })
                         .build();
-        firebaseAdapter=new FirebaseRecyclerAdapter<String,ViewHolder>(options) {
+        firebaseAdapter = new FirebaseRecyclerAdapter<String, ViewHolder>(options) {
             @Override
             protected void onBindViewHolder(@NonNull ViewHolder holder, int position, @NonNull String model) {
                 firebaseRecyclerView.setVisibility(View.VISIBLE);
@@ -245,7 +250,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     }
 
     private void addToDatabase(final String result) {
-        /*realm.executeTransactionAsync(new Realm.Transaction() {
+        realm.executeTransactionAsync(new Realm.Transaction() {
             @Override
             public void execute(Realm bgRealm) {
                 Model object = bgRealm.createObject(Model.class);
@@ -262,7 +267,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
             public void onError(Throwable error) {
                 Log.v("line198", error.getLocalizedMessage());
             }
-        });*/
+        });
 
     }
 
@@ -271,10 +276,8 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         super.onStart();
         firebaseAdapter.startListening();
 
-        // Prepare Cloud Speech API
         bindService(new Intent(this, SpeechService.class), mServiceConnection, BIND_AUTO_CREATE);
 
-        // Start listening to voices
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 == PackageManager.PERMISSION_GRANTED) {
             startVoiceRecorder();
@@ -373,6 +376,7 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         });
     }
 
+
     @Override
     public void onMessageDialogDismissed() {
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},
@@ -383,9 +387,15 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         ArrayList<String> results = new ArrayList<>();
         RealmResults<Model> databaseResults = realm.where(Model.class).findAll();
         for (Model databaseResult : databaseResults) {
-            results.add(databaseResult.getSavedText());
+            TrieNode root = new TrieNode();
+            root.insert(databaseResult.getSavedText());
+            if (root.search(recentSpokenText, false))
+                results.add(databaseResult.getSavedText());
         }
         //new ReadDataAsync().execute("");
+        if (results.size()==0){
+            emptyLayout.setVisibility(View.GONE);
+        }
         mAdapter = new ResultAdapter(results);
         mRecyclerView.setAdapter(mAdapter);
     }
@@ -393,10 +403,12 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
     private static class ViewHolder extends RecyclerView.ViewHolder {
 
         TextView text;
+        CardView cardView;
 
         ViewHolder(LayoutInflater inflater, ViewGroup parent) {
             super(inflater.inflate(R.layout.item_result, parent, false));
             text = (TextView) itemView.findViewById(R.id.text);
+            cardView=(CardView) itemView.findViewById(R.id.card);
         }
 
     }
@@ -417,8 +429,14 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
         }
 
         @Override
-        public void onBindViewHolder(ViewHolder holder, int position) {
+        public void onBindViewHolder(final ViewHolder holder, final int position) {
             holder.text.setText(mResults.get(position));
+            holder.cardView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    holder.text.setText(mResults.get(position));
+                }
+            });
         }
 
         @Override
@@ -448,21 +466,4 @@ public class MainActivity extends AppCompatActivity implements MessageDialogFrag
             return null;
         }
     }
-
-    public class ReadDataAsync extends AsyncTask<String, Integer, String> {
-
-        @Override
-        protected String doInBackground(String... strings) {
-
-
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-
-        }
-    }
-
 }
