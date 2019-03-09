@@ -16,6 +16,8 @@
 
 apply plugin: 'com.android.application'
 apply plugin: 'com.google.protobuf'
+apply plugin: 'realm-android'
+apply plugin: 'com.google.gms.google-services'
 
 ext {
     supportLibraryVersion = '25.4.0'
@@ -25,6 +27,7 @@ ext {
 android {
     compileSdkVersion 28
     buildToolsVersion '28.0.3'
+    flavorDimensions "default"
 
     defaultConfig {
         applicationId "com.google.cloud.android.speech"
@@ -97,29 +100,33 @@ protobuf {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'com.google.firebase:firebase-database:16.0.6'
+    implementation 'com.firebaseui:firebase-ui-database:3.1.3'
+    implementation 'com.android.support.constraint:constraint-layout:1.1.2'
+    implementation 'com.android.support:appcompat-v7:27.0.2'
 
     // Support libraries
-    compile "com.android.support:design:$supportLibraryVersion"
-    compile "com.android.support:cardview-v7:$supportLibraryVersion"
-    compile "com.android.support:recyclerview-v7:$supportLibraryVersion"
+    implementation "com.android.support:design:$supportLibraryVersion"
+    implementation "com.android.support:cardview-v7:$supportLibraryVersion"
+    implementation "com.android.support:recyclerview-v7:$supportLibraryVersion"
 
     // gRPC
-    compile "io.grpc:grpc-okhttp:$grpcVersion"
-    compile "io.grpc:grpc-protobuf-lite:$grpcVersion"
-    compile "io.grpc:grpc-stub:$grpcVersion"
-    compile 'javax.annotation:javax.annotation-api:1.2'
+    implementation "io.grpc:grpc-okhttp:$grpcVersion"
+    implementation "io.grpc:grpc-protobuf-lite:$grpcVersion"
+    implementation "io.grpc:grpc-stub:$grpcVersion"
+    implementation 'javax.annotation:javax.annotation-api:1.2'
     protobuf 'com.google.protobuf:protobuf-java:3.3.1'
 
     // OAuth2 for Google API
-    compile('com.google.auth:google-auth-library-oauth2-http:0.7.0') {
+    implementation('com.google.auth:google-auth-library-oauth2-http:0.7.0') {
         exclude module: 'httpclient'
     }
 
     // Tests
-    testCompile 'junit:junit:4.12'
-    androidTestCompile 'com.android.support.test:runner:0.5'
-    androidTestCompile 'com.android.support.test.espresso:espresso-core:2.2.2'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:0.5'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:2.2.2'
 }
 
 task copySecretKey(type: Copy) {

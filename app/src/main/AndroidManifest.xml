@@ -27,6 +27,7 @@
         android:fullBackupContent="@xml/backup_scheme"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:name=".Realm.MyApplication"
         android:supportsRtl="true"
         android:theme="@style/Theme.Speech"
         tools:ignore="GoogleAppIndexingWarning">
@@ -37,6 +38,11 @@
             </intent-filter>
         </activity>
         <service android:name=".SpeechService"/>
+        <meta-data
+            tools:node="replace"
+            android:name="android.support.VERSION"
+            android:value="26.1.0"
+        />
     </application>
 
 </manifest>

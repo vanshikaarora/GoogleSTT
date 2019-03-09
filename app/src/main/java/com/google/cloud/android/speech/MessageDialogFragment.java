@@ -32,13 +32,6 @@ import android.support.v7.app.AppCompatDialogFragment;
  */
 public class MessageDialogFragment extends AppCompatDialogFragment {
 
-    public interface Listener {
-        /**
-         * Called when the dialog is dismissed.
-         */
-        void onMessageDialogDismissed();
-    }
-
     private static final String ARG_MESSAGE = "message";
 
     /**
@@ -73,6 +66,13 @@ public class MessageDialogFragment extends AppCompatDialogFragment {
                     }
                 })
                 .create();
+    }
+
+    public interface Listener {
+        /**
+         * Called when the dialog is dismissed.
+         */
+        void onMessageDialogDismissed();
     }
 
 }
