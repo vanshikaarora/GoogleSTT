@@ -74,4 +74,7 @@ Search suggestions matching the current searched text pop from cache memory. The
 All the spoken texts are stored in Firebase Realtime Database.
 <img src="app/Screenshot from 2019-03-09 23-37-57.png">
 
+### Other features
+At any time you can retrieve the entire list from Firebase using the icon on the topmost-right corner
+<img src="app/WhatsApp Image 2019-03-09 at 11.12.21 PM (3).jpeg">
 
